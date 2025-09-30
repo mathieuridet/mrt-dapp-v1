@@ -2,9 +2,23 @@ import path from "path";
 import fs from "fs";
 import fetch from "node-fetch";
 import { execSync } from "child_process";
+import swcData from "swc-registry/lib/swc-definition.json";
+
+type SWCEntry = (typeof swcData)[keyof typeof swcData];
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
 const TMP = './tmp';
+
+export function getSWCEntry(id: string) {
+  const entry = (swcData as Record<string, SWCEntry>)[id];
+  if (!entry) return undefined;
+
+  return {
+    Id: id,
+    markdown: entry.markdown,
+    ...entry.content, // spread Title, Relationships, Description, Remediation
+  };
+}
 
 type SlitherReport = {
   results?: {
@@ -46,6 +60,29 @@ type OllamaResponse = {
 type EtherscanMultiSource = {
   sources: Record<string, { content: string }>;
 };
+
+function getReferences(entry: import("swc-registry").EntryData): string[] {
+  if (
+    entry.Relationships &&
+    typeof entry.Relationships !== "string" &&
+    Array.isArray(entry.Relationships.References)
+  ) {
+    return entry.Relationships.References;
+  }
+  return [];
+}
+
+function enrichWithSWC(description: string) {
+  const lower = description.toLowerCase();
+
+  if (lower.includes("reentrancy")) return getSWCEntry("SWC-107");
+  if (lower.includes("integer overflow")) return getSWCEntry("SWC-101");
+  if (lower.includes("tx.origin")) return getSWCEntry("SWC-115");
+  if (lower.includes("unchecked call")) return getSWCEntry("SWC-104");
+  // … extend mapping as needed
+
+  return null;
+}
 
 async function fetchContractSource(address: string): Promise<string> {
   const url = `https://api-sepolia.etherscan.io/api?module=contract&action=getsourcecode&address=${address}&apikey=${ETHERSCAN_API_KEY}`;
@@ -169,19 +206,34 @@ export async function runAudit(address: string) {
     return "✅ No vulnerabilities found by Slither for this contract.";
   }
 
-  const prompt = `
-You are a Solidity security auditor.
-Here are Slither findings for ${address}:
-${JSON.stringify(issues, null, 2)}
+  const enrichedIssues = issues.map((issue) => {
+    const swcEntry = enrichWithSWC(issue.description ?? "");
+    return {
+      ...issue,
+      swc: swcEntry
+        ? {
+            //id: swcEntry.Id,
+            title: swcEntry.Title,
+            remediation: swcEntry.Remediation,
+            references: getReferences(swcEntry),
+          }
+        : null,
+    };
+  });
 
-Summarize in plain English:
-- Group by severity (High/Medium/Low).
-- Explain the risk.
-- Provide practical remediation steps.
-- Include filename and line numbers exactly as reported.
-- Do not invent findings or contract names if none are given.
-Format as Markdown.
-`;
+  const prompt = `
+  You are a Solidity security auditor.
+
+  Here are Slither findings for ${address}, enriched with SWC registry references:
+  ${JSON.stringify(enrichedIssues, null, 2)}
+
+  Summarize in plain English:
+  - Group by severity
+  - Explain risks
+  - Suggest remediations (prefer SWC Remediation text if present)
+  - Add references where relevant
+  Format as Markdown.
+  `;
 
   const aiRes = await fetch("http://localhost:11434/api/generate", {
     method: "POST",
