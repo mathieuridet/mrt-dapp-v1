@@ -11,7 +11,6 @@
 
 import path from "path";
 import fs from "fs";
-import fetch from "node-fetch";
 import { execSync, execFileSync } from "child_process";
 import swcData from "swc-registry/lib/swc-definition.json";
 
