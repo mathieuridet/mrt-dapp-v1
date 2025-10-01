@@ -1,59 +1,100 @@
- # Solidity Security Audit Findings for 0xf4122cE080299FcDb6B72E007F55608E05dCf501
+# High Impact Findings
 
-## High Severity Issues
+## Controlled Delegatecall
+- Contract: src/VulnerableContract.sol
+- Locations:
+  - src/VulnerableContract.sol:8 (element: callContract)
+  - src/VulnerableContract.sol:9 (element: (success,None) = yourAddress.delegatecall(abi.encodeWithSignature(doSomething())))
+- Confidence: Medium
+- Issue: Uses `delegatecall` to an input-controlled target, executing code in the caller’s context.
+- Recommendation: Avoid `delegatecall` to untrusted targets; restrict to immutable/whitelisted addresses or replace with interface calls.
+- **SWC:** SWC-112: Delegatecall to Untrusted Callee
+- **SWC Remediation:** Use `delegatecall` with caution and make sure to never call into untrusted contracts. If the target address is derived from user input ensure to check it against a whitelist of trusted contracts.
 
-### **Risk: Unchecked external calls (Reentrancy vulnerability)**
+# Medium Impact Findings
 
-**Description:** Unchecked external calls can potentially lead to re-entrant transactions, causing data inconsistency and loss of funds.
+## Reentrancy (no ETH)
+- Contract: src/VulnerableContract.sol
+- Locations:
+  - src/VulnerableContract.sol:18 (element: callContractAgain)
+  - src/VulnerableContract.sol:20 (element: (success,None) = yourAddress.call(abi.encodeWithSelector(selector)))
+  - src/VulnerableContract.sol:25 (element: s_otherVar = 0)
+- Confidence: Medium
+- Issue: External call occurs before a state write, enabling reentrancy before effects are applied. A state variable is written after an external call.
+- Recommendation: Apply Checks–Effects–Interactions and/or a reentrancy guard; validate/limit the callee.
+- **SWC:** SWC-107: Reentrancy
+- **SWC Remediation:** The best practices to avoid Reentrancy weaknesses are: 
 
-**Impact:** An attacker could manipulate the contract state in a way that leads to unexpected behavior or the theft of funds.
 
-**File:** Contracts/MyContract.sol
-**Line:** 40, 51
+- Make sure all internal state changes are performed before the call is executed. This is known as the [Checks-Effects-Interactions pattern](https://solidity.readthedocs.io/en/latest/security-considerations.html#use-the-checks-effects-interactions-pattern)
+- Use a reentrancy lock (ie.  [OpenZeppelin's ReentrancyGuard](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ReentrancyGuard.sol).
 
-```solidity
-// HERE: external function with no check-safeguards for callers
-function myUncheckedCall(address _target, uint256 _value) external {
-    _target.call{value: _value}();
-}
-```
+# Low Impact Findings
 
-**Remediation:** Use `require()` or `checks-effects` to ensure that the called function does not re-enter the contract before its state is updated.
+## Reentrancy (benign)
+- Contract: src/VulnerableContract.sol
+- Locations:
+  - src/VulnerableContract.sol:8 (element: callContract)
+  - src/VulnerableContract.sol:9 (element: (success,None) = yourAddress.delegatecall(abi.encodeWithSignature(doSomething())))
+  - src/VulnerableContract.sol:14 (element: s_variable = 0)
+- Confidence: Medium
+- Issue: External call followed by a state write (marked benign by Slither for this context). A state variable is written after an external call.
+- Recommendation: Prefer CEI or a guard if the function can be externally triggered.
+- **SWC:** SWC-107: Reentrancy
+- **SWC Remediation:** The best practices to avoid Reentrancy weaknesses are: 
 
-### **Risk: Potential integer overflow/underflow (Math vulnerability)**
 
-**Description:** Unchecked arithmetic operations on integers can lead to overflow or underflow issues, potentially leading to incorrect calculations and contract failures.
+- Make sure all internal state changes are performed before the call is executed. This is known as the [Checks-Effects-Interactions pattern](https://solidity.readthedocs.io/en/latest/security-considerations.html#use-the-checks-effects-interactions-pattern)
+- Use a reentrancy lock (ie.  [OpenZeppelin's ReentrancyGuard](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ReentrancyGuard.sol).
 
-**Impact:** An attacker could manipulate the contract state in a way that leads to unexpected behavior or the theft of funds.
+## Missing zero-check (address)
+- Contract: src/VulnerableContract.sol
+- Locations:
+  - src/VulnerableContract.sol:8 (element: yourAddress)
+  - src/VulnerableContract.sol:9 (element: (success,None) = yourAddress.delegatecall(abi.encodeWithSignature(doSomething())))
+  - src/VulnerableContract.sol:18 (element: yourAddress)
+  - src/VulnerableContract.sol:20 (element: (success,None) = yourAddress.call(abi.encodeWithSelector(selector)))
+- Confidence: Medium
+- Issue: Target address parameter lacks a `!= address(0)` validation.
+- Recommendation: Validate non-zero addresses and check `success` for low-level calls.
 
-**File:** Contracts/MyContract.sol
-**Line:** 32
 
-```solidity
-// HERE: potential integer overflow issue with no checks
-myArray[index].value = myArray[index].value + newValue;
-```
+# Informational Impact Findings
 
-**Remediation:** Use safe math library functions like SafeMath to prevent arithmetic operations from causing overflows and underflows.
+## Low-level calls
+- Contract: src/VulnerableContract.sol
+- Locations:
+  - src/VulnerableContract.sol:18 (element: callContractAgain)
+  - src/VulnerableContract.sol:20 (element: (success,None) = yourAddress.call(abi.encodeWithSelector(selector)))
+- Confidence: High
+- Issue: Uses low-level calls (`call`/`delegatecall`) that bypass type safety and can fail silently.
+- Recommendation: Prefer typed interface calls; if using low-level calls, check `success` and handle returned data.
+- **SWC:** SWC-104: Unchecked Call Return Value
+- **SWC Remediation:** If you choose to use low-level call methods, make sure to handle the possibility that the call will fail by checking the return value.
 
-## Medium Severity Issues
+## Low-level calls
+- Contract: src/VulnerableContract.sol
+- Locations:
+  - src/VulnerableContract.sol:8 (element: callContract)
+  - src/VulnerableContract.sol:9 (element: (success,None) = yourAddress.delegatecall(abi.encodeWithSignature(doSomething())))
+- Confidence: High
+- Issue: Uses low-level calls (`call`/`delegatecall`) that bypass type safety and can fail silently.
+- Recommendation: Prefer typed interface calls; if using low-level calls, check `success` and handle returned data.
+- **SWC:** SWC-104: Unchecked Call Return Value
+- **SWC Remediation:** If you choose to use low-level call methods, make sure to handle the possibility that the call will fail by checking the return value.
 
-### **Risk: Use of deprecated functions (Compatibility vulnerability)**
+## Naming convention
+- Contract: src/VulnerableContract.sol
+- Element: `s_variable` (line 5)
+- Confidence: High
+- Issue: Variable is not in mixedCase.
+- Recommendation: Rename variables to mixedCase (e.g., `sVariable`, `sOtherVar`).
 
-**Description:** Using deprecated functions can lead to compatibility issues with future updates, as well as potential security risks due to changes in the function behavior or contract interaction.
 
-**Impact:** Contracts using deprecated functions may become unstable or vulnerable when interacting with other contracts that have been updated accordingly.
+## Naming convention
+- Contract: src/VulnerableContract.sol
+- Element: `s_otherVar` (line 6)
+- Confidence: High
+- Issue: Variable is not in mixedCase.
+- Recommendation: Rename variables to mixedCase (e.g., `sVariable`, `sOtherVar`).
 
-**File:** Contracts/MyContract.sol
-**Line:** 15
-
-```solidity
-// HERE: deprecated function usage
-using SafeMath for uint256;
-```
-
-**Remediation:** Update to the latest version of the library and ensure that all dependencies are compatible with the current contract requirements.
-
-## Low Severity Issues
-
-None found in this audit.
