@@ -9,7 +9,6 @@ const links = [
   { href: "/nft", label: "NFT" },
   { href: "/token/claim", label: "Claim" },
   { href: "/token/stake", label: "Stake" },
-  { href: "/audit", label: "Audit"}
 ];
 
 export default function NavBar() {
