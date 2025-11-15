@@ -17,7 +17,7 @@ module.exports = {
   },
   etherscan: { apiKey: process.env.ETHERSCAN_API_KEY },
   abiExporter: [{
-    path: "frontend/abi",
+    path: "../frontend/abi",
     runOnCompile: true,
     clear: true,
     flat: true,

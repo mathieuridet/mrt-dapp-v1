@@ -148,7 +148,9 @@ export default function ClaimPage() {
             </span>
           </h1>
           <p className="text-zinc-400 mt-1">
-            Check your eligibility and claim your airdrop securely.
+            Check your eligibility and claim your airdrop securely.<br />
+            If you don't claim within 1 hour after a mint, you will lose your eligibility.<br /><br />
+            NB : it can take up to a few minutes to be able to claim after a mint.
           </p>
         </div>
 

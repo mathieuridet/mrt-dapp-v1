@@ -20,17 +20,20 @@ This file is a step-by-step guide for redeploying the MRTNFT contract when updat
   ```
 - [ ] Deploy the contract with Hardhat/Foundry.
   ```bash
-  npx hardhat run scripts/deploy-nft.js --network sepolia
+  cd backend
+  npx hardhat run scripts/deploy/deploy-nft.js --network sepolia
   ```
 - [ ] Verify the contract on Etherscan:
   ```bash
+  cd backend
   npx hardhat verify --network sepolia <contractAddress> <ownerAddress> "ipfs://<metadataCID>/" <maxSupply> <mintPriceInWei:2000000000000000000> <royaltyReceiver> <royaltyBps:500>
   ```
 - Regenerate the ABI:
-  Execute the following in project's root
+  Execute the following in backend folder
   ```bash
+  cd backend
   npx hardhat compile
-  cp artifacts/contracts/nft/MRTNFToken.sol/MRTNFToken.json frontend/abi/MRTNFToken.json
+  cp artifacts/contracts/nft/MRTNFToken.sol/MRTNFToken.json ../frontend/abi/MRTNFToken.json
   ``` 
 - [ ] Note the new contract address.
 

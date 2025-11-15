@@ -19,7 +19,7 @@ const { ethers, getNft, wallet } = require("./utils");
     }
   } else if (cmd === "baseuri") {
     const uri = process.argv[3];
-    if (!uri) throw new Error("Usage: node scripts/node/nft_admin.js baseuri ipfs://CID/");
+    if (!uri) throw new Error("Usage: node scripts/actions/nft_admin.js baseuri ipfs://CID/");
     const tx = await nft.setBaseURI(uri);
     console.log("setBaseURI tx:", tx.hash);
     await tx.wait();
@@ -35,9 +35,9 @@ const { ethers, getNft, wallet } = require("./utils");
     console.log("royaltyInfo(1,", saleWei.toString(), ") ->", { receiver, amount: amount.toString() });
   } else {
     console.log(`Usage:
-  node scripts/node/nft_admin.js sale <true|false>
-  node scripts/node/nft_admin.js baseuri <ipfs://CID/>
-  node scripts/node/nft_admin.js withdraw [to]
-  node scripts/node/nft_admin.js royalty [saleEth]`);
+  node scripts/actions/nft_admin.js sale <true|false>
+  node scripts/actions/nft_admin.js baseuri <ipfs://CID/>
+  node scripts/actions/nft_admin.js withdraw [to]
+  node scripts/actions/nft_admin.js royalty [saleEth]`);
   }
 })();
